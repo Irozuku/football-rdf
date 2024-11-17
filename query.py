@@ -11,17 +11,17 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?leagueName (SUM(?goals) AS ?totalGoals)
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?stats ;
-          FOOTBALL:playsFor ?team .
-  ?stats FOOTBALL:inLeague ?league ;
-         FOOTBALL:goals ?goals .
-  BIND(STRAFTER(STR(?league), "http://example.org/FOOTBALL/") AS ?leagueName)
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  ?player a fb:Player ;
+          fb:hasStats ?stats ;
+          fb:playsFor ?team .
+  ?stats fb:inLeague ?league ;
+         fb:goals ?goals .
+  BIND(STRAFTER(STR(?league), "http://example.org/football/") AS ?leagueName)
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 GROUP BY ?playerName ?leagueName
 ORDER BY DESC(?totalGoals)
@@ -44,19 +44,19 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?leagueName ?goals ?conversionRate
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?statsGoals, ?statsShots .
-  ?statsGoals FOOTBALL:inLeague ?league ;
-              FOOTBALL:goals ?goals .
-  ?statsShots FOOTBALL:inLeague ?league ;
-              FOOTBALL:shotConversionRate ?conversionRate .
+  ?player a fb:Player ;
+          fb:hasStats ?statsGoals, ?statsShots .
+  ?statsGoals fb:inLeague ?league ;
+              fb:goals ?goals .
+  ?statsShots fb:inLeague ?league ;
+              fb:shotConversionRate ?conversionRate .
   FILTER (?goals >= 5)
-  BIND(STRAFTER(STR(?league), "http://example.org/FOOTBALL/") AS ?leagueName)
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  BIND(STRAFTER(STR(?league), "http://example.org/football/") AS ?leagueName)
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?conversionRate)
 LIMIT 10
@@ -79,19 +79,19 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?leagueName ?chancesCreated
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?statsChances, ?statsGoals .
-  ?statsChances FOOTBALL:inLeague ?league ;
-                FOOTBALL:chancesCreated ?chancesCreated .
-  ?statsGoals FOOTBALL:inLeague ?league ;
-              FOOTBALL:goals ?goals .
+  ?player a fb:Player ;
+          fb:hasStats ?statsChances, ?statsGoals .
+  ?statsChances fb:inLeague ?league ;
+                fb:chancesCreated ?chancesCreated .
+  ?statsGoals fb:inLeague ?league ;
+              fb:goals ?goals .
   FILTER (?goals = 0)
-  BIND(STRAFTER(STR(?league), "http://example.org/FOOTBALL/") AS ?leagueName)
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  BIND(STRAFTER(STR(?league), "http://example.org/football/") AS ?leagueName)
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?chancesCreated)
 LIMIT 10
@@ -114,14 +114,14 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?leagueName (AVG(?shotsPerNinety) AS ?avgShotsPerNinety)
 WHERE {
-  ?player FOOTBALL:hasStats ?stats .
-  ?stats FOOTBALL:inLeague ?league ;
-         FOOTBALL:shotsPerNinety ?shotsPerNinety .
-  BIND(STRAFTER(STR(?league), "http://example.org/FOOTBALL/") AS ?leagueName)
+  ?player fb:hasStats ?stats .
+  ?stats fb:inLeague ?league ;
+         fb:shotsPerNinety ?shotsPerNinety .
+  BIND(STRAFTER(STR(?league), "http://example.org/football/") AS ?leagueName)
 }
 GROUP BY ?leagueName
 ORDER BY DESC(?avgShotsPerNinety)
@@ -139,31 +139,31 @@ print("-------------------------------------------------------------------------
 print()
 
 
-print("Players who have scored in both Premier League and La Liga:")
+print("Players who have score stats in both Premier League and La Liga:")
 print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?premierLeagueGoals ?laLigaGoals
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?statsPL, ?statsLaLiga .
+  ?player a fb:Player ;
+          fb:hasStats ?statsPL, ?statsLaLiga .
 
   # Ensure that the Premier League stats contain goals data
-  ?statsPL FOOTBALL:inLeague FOOTBALL:PremierLeague .
-  OPTIONAL { ?statsPL FOOTBALL:goals ?premierLeagueGoals }
+  ?statsPL fb:inLeague fb:PremierLeague .
+  OPTIONAL { ?statsPL fb:goals ?premierLeagueGoals }
   
   # Ensure that the La Liga stats contain goals data
-  ?statsLaLiga FOOTBALL:inLeague FOOTBALL:LaLiga .
-  OPTIONAL { ?statsLaLiga FOOTBALL:goals ?laLigaGoals }
+  ?statsLaLiga fb:inLeague fb:LaLiga .
+  OPTIONAL { ?statsLaLiga fb:goals ?laLigaGoals }
   
   # Filter players with goals in both leagues
   FILTER (BOUND(?premierLeagueGoals) && BOUND(?laLigaGoals))
   
   # Extract player name from URI
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?premierLeagueGoals) DESC(?laLigaGoals)
 LIMIT 10
@@ -186,15 +186,15 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?goals
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?stats .
-  ?stats FOOTBALL:inLeague FOOTBALL:PremierLeague ;
-         FOOTBALL:goals ?goals .
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  ?player a fb:Player ;
+          fb:hasStats ?stats .
+  ?stats fb:inLeague fb:PremierLeague ;
+         fb:goals ?goals .
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?goals)
 LIMIT 10
@@ -213,15 +213,15 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?conversionRate
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?stats .
-  ?stats FOOTBALL:inLeague FOOTBALL:LaLiga ;
-         FOOTBALL:shotConversionRate ?conversionRate .
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  ?player a fb:Player ;
+          fb:hasStats ?stats .
+  ?stats fb:inLeague fb:LaLiga ;
+         fb:shotConversionRate ?conversionRate .
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?conversionRate)
 LIMIT 10
@@ -241,16 +241,16 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT DISTINCT ?playerName ?league ?minutes
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?stats .
-  ?stats FOOTBALL:inLeague ?league ;
-         FOOTBALL:minutes ?minutes .
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
-  BIND(STRAFTER(STR(?league), "http://example.org/FOOTBALL/") AS ?league)
+  ?player a fb:Player ;
+          fb:hasStats ?stats .
+  ?stats fb:inLeague ?league ;
+         fb:minutes ?minutes .
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
+  BIND(STRAFTER(STR(?league), "http://example.org/football/") AS ?league)
 }
 ORDER BY DESC(?minutes)
 LIMIT 10
@@ -270,15 +270,15 @@ print()
 
 # Prepare and execute the query
 query = prepareQuery("""
-PREFIX FOOTBALL: <http://example.org/FOOTBALL/>
+PREFIX fb: <http://example.org/football/>
 
 SELECT ?playerName ?assists
 WHERE {
-  ?player a FOOTBALL:Player ;
-          FOOTBALL:hasStats ?stats .
-  ?stats FOOTBALL:inLeague FOOTBALL:LaLiga ;
-         FOOTBALL:assists ?assists .
-  BIND(STRAFTER(STR(?player), "http://example.org/FOOTBALL/") AS ?playerName)
+  ?player a fb:Player ;
+          fb:hasStats ?stats .
+  ?stats fb:inLeague fb:LaLiga ;
+         fb:assists ?assists .
+  BIND(STRAFTER(STR(?player), "http://example.org/football/") AS ?playerName)
 }
 ORDER BY DESC(?assists)
 LIMIT 10
