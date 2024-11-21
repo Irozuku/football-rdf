@@ -1,3 +1,5 @@
+from SPARQLWrapper import SPARQLWrapper, JSON
+import json
 import pandas as pd
 from rdflib import Graph, Namespace, Literal, URIRef, BNode
 from rdflib.namespace import RDF, RDFS, OWL, XSD
@@ -35,6 +37,8 @@ class FootballGraph:
         self.rdf_graph.add((self.FOOTBALL.nationality, RDF.type, OWL.ObjectProperty))
         self.rdf_graph.add((self.FOOTBALL.hasStats, RDF.type, OWL.ObjectProperty))
         self.rdf_graph.add((self.FOOTBALL.inLeague, RDF.type, OWL.ObjectProperty))
+        self.rdf_graph.add((self.FOOTBALL.inTeam, RDF.type, OWL.ObjectProperty))
+        self.rdf_graph.add((self.FOOTBALL.inSeason, RDF.type, OWL.DatatypeProperty))
         self.rdf_graph.add((self.FOOTBALL.shotsPerNinety, RDF.type, OWL.DatatypeProperty))
         self.rdf_graph.add((self.FOOTBALL.shotConversionRate, RDF.type, OWL.DatatypeProperty))
         self.rdf_graph.add((self.FOOTBALL.minutes, RDF.type, OWL.DatatypeProperty))
@@ -103,6 +107,8 @@ class FootballGraph:
             self.rdf_graph.add((stats_uri, RDF.type, self.FOOTBALL.PlayerStats))
             self.rdf_graph.add((player_uri, self.FOOTBALL.hasStats, stats_uri))
             self.rdf_graph.add((stats_uri, self.FOOTBALL.inLeague, league_uri))
+            self.rdf_graph.add((stats_uri, self.FOOTBALL.inTeam, team_uri))
+            self.rdf_graph.add((stats_uri, self.FOOTBALL.inSeason, Literal("2023/24", datatype=XSD.string)))
             
             # Add minutes and matches data if available
             if 'Minutes' in df.columns:
@@ -207,28 +213,162 @@ class FootballGraph:
                 if pass_success_literal:
                     self.rdf_graph.add((stats_uri, self.FOOTBALL.passSuccessPercentage, pass_success_literal))
 
+    def country_iso_to_name(self, country_iso_code):
+        with open('./iso_to_country.json', 'r') as file:
+            json_data: json = json.load(file)
+            try:
+                return json_data[country_iso_code]
+            except KeyError:
+                return None
+        
+    def link_country_to_wikidata(self):
+        endpoint_url = "https://query.wikidata.org/sparql"
+        
+        base_query = """
+        ASK
+        WHERE {
+            ?country wdt:P31 wd:Q6256 . # country
+            VALUES ?country { %s }
+        }
+        """
+            
+        for country in self.rdf_graph.subjects(RDF.type, self.FOOTBALL.Country):
+            country_iso_code = str(country).split("/")[-1].replace("_", " ")
+            country_name = self.country_iso_to_name(country_iso_code)
+            if not country_name:
+                print(f"Couldn't find the country name for {country_iso_code}")
+                continue
+            
+            # We use the search engine of wikidata
+            wikidata_url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={country_name}&language=en&format=json&type=item"
+            response = requests.get(wikidata_url)
+            data = response.json()
+            wikidata_results = data['search']
+            
+            # We iterate over the results and use sparql to query checking if they are countries
+            for result in wikidata_results:
+                wikidata_id = result['id']
+                sparql_values = "wd:" + wikidata_id
+                
+                query = base_query % sparql_values
+                
+                sparql = SPARQLWrapper(endpoint_url)
+                sparql.setQuery(query)
+                sparql.setReturnFormat(JSON)
+                
+                try:
+                    results = sparql.query().convert()
+                    if results["boolean"]:
+                        wikidata_uri = URIRef(f"http://www.wikidata.org/entity/{result['id']}")
+                        self.rdf_graph.add((country, OWL.sameAs, wikidata_uri))
+                        break
+                except Exception as e:
+                    print(f"Fail: Couldn't execute the query for {country_name}, {wikidata_id}")
 
+    def link_leagues_to_wikidata(self):
+        wikidata_leagues = {
+            "PremierLeague": "http://www.wikidata.org/entity/Q9448",
+            "LaLiga": "http://www.wikidata.org/entity/Q324867",
+            "SerieA": "http://www.wikidata.org/entity/Q15804"
+        }
+        
+        for league in self.rdf_graph.subjects(RDF.type, self.FOOTBALL.League):
+            league_name = str(league).split("/")[-1].replace("_", " ")
+            wikidata_uri = URIRef(wikidata_leagues[league_name])
+            self.rdf_graph.add((league, OWL.sameAs, wikidata_uri))
+        
     def link_players_to_wikidata(self):
+        endpoint_url = "https://query.wikidata.org/sparql"
+        
+        base_query = """
+        ASK
+        WHERE {
+            ?player wdt:P106 wd:Q937857 . # football player
+            ?player wdt:P19|wdt:P27 ?country . # country
+            VALUES ( ?player ?country ) { %s }
+        }
+        """
+        
         for player in self.rdf_graph.subjects(RDF.type, self.FOOTBALL.Player):
             player_name = str(player).split("/")[-1].replace("_", " ")
+            # We use the search engine of wikidata  
             wikidata_url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={player_name}&language=en&format=json&type=item"
             response = requests.get(wikidata_url)
             data = response.json()
-            if data['search']:
-                wikidata_id = data['search'][0]['id']
-                wikidata_uri = URIRef(f"http://www.wikidata.org/entity/{wikidata_id}")
-                self.rdf_graph.add((player, OWL.sameAs, wikidata_uri))
+            wikidata_results = data['search']
+            
+            country_uri = self.rdf_graph.value(player, self.FOOTBALL.nationality)
+            wikidata_country = self.rdf_graph.value(country_uri, OWL.sameAs)
+            country_wikidata_id = "wd:" + str(wikidata_country).split("/")[-1]
+            
+            # We iterate over the results and use sparql to query checking if they are players
+            for result in wikidata_results:
+                player_wikidata_id = "wd:" + result['id']
                 
+                if not country_uri:
+                    base_query = """
+                    ASK
+                    WHERE {
+                        ?player wdt:P106 wd:Q937857 . # football player
+                        VALUES ?player { %s }
+                    }
+                    """
+                    sparql_values = player_wikidata_id
+                else:
+                    sparql_values = f"({player_wikidata_id} {country_wikidata_id})"
+                    
+                query = base_query % sparql_values
+                
+                sparql = SPARQLWrapper(endpoint_url)
+                sparql.setQuery(query)
+                sparql.setReturnFormat(JSON)
+                
+                try:
+                    results = sparql.query().convert()
+                    if results["boolean"]:
+                        wikidata_uri = URIRef(f"http://www.wikidata.org/entity/{result['id']}")
+                        self.rdf_graph.add((player, OWL.sameAs, wikidata_uri))
+                        break
+                except Exception as e:
+                    print(f"Fail: Couldn't execute the query for {player_name}, {player_wikidata_id}")
+   
     def link_teams_to_wikidata(self):
+        endpoint_url = "https://query.wikidata.org/sparql"
+        
+        base_query = """
+        ASK
+        WHERE {
+            ?team wdt:P31 wd:Q476028 . # team
+            VALUES ?team { %s }
+        }
+        """
+        
         for team in self.rdf_graph.subjects(RDF.type, self.FOOTBALL.Team):
             team_name = str(team).split("/")[-1].replace("_", " ")
+            # We use the search engine of wikidata
             wikidata_url = f"https://www.wikidata.org/w/api.php?action=wbsearchentities&search={team_name}&language=en&format=json&type=item"
             response = requests.get(wikidata_url)
             data = response.json()
-            if data['search']:
-                wikidata_id = data['search'][0]['id']
-                wikidata_uri = URIRef(f"http://www.wikidata.org/entity/{wikidata_id}")
-                self.rdf_graph.add((team, OWL.sameAs, wikidata_uri))
+            wikidata_results = data['search']
+            
+            # We iterate over the results and use sparql to query checking if they are teams
+            for result in wikidata_results:
+                wikidata_id = result['id']
+                sparql_values = "wd:" + wikidata_id
+                query = base_query % sparql_values
+                
+                sparql = SPARQLWrapper(endpoint_url)
+                sparql.setQuery(query)
+                sparql.setReturnFormat(JSON)
+                
+                try:
+                    results = sparql.query().convert()
+                    if results["boolean"]:
+                        wikidata_uri = URIRef(f"http://www.wikidata.org/entity/{wikidata_id}")
+                        self.rdf_graph.add((team, OWL.sameAs, wikidata_uri))
+                        break
+                except Exception as e:
+                    print(f"Fail: Couldn't execute the query for {team_name}, {wikidata_id}")
 
     def load_all_data(self):
         base_path = "./datasets"
@@ -270,9 +410,12 @@ class FootballGraph:
         self.add_team_data(os.path.join(base_path, "SerieA23_24/team_goals_per_match.csv"), 'goals_per_match', 'SerieA')
         self.add_team_data(os.path.join(base_path, "SerieA23_24/saves_team.csv"), 'saves', 'SerieA')
         self.add_team_data(os.path.join(base_path, "SerieA23_24/accurate_pass_team.csv"), 'accurate_pass', 'SerieA')
-
-        # Link players to Wikidata
-        # self.link_players_to_wikidata()
+    
+    def link_to_wikidata(self):
+        self.link_country_to_wikidata()
+        self.link_leagues_to_wikidata()
+        self.link_teams_to_wikidata()
+        self.link_players_to_wikidata()
 
     def save_ontology(self, destination="football_ontology.ttl"):
         self.rdf_graph.serialize(destination=destination, format="turtle")
@@ -282,5 +425,6 @@ class FootballGraph:
 if __name__ == "__main__":
     graph = FootballGraph()
     graph.load_all_data()
+    graph.link_to_wikidata()
     graph.save_ontology()
     print("Football ontology saved to football_ontology.ttl")
