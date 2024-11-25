@@ -10,28 +10,6 @@ This project consists of three main components:
 2. **query.py**: This script contains various SPARQL queries to interact with the RDF graph.
 3. **main.py**: This script serves as a FastAPI endpoint to provide an API interface for interacting with the RDF graph and executing SPARQL queries.
 
-## Files
-
-### generate_rdf.py
-- **Description**: Generates the RDF graph from the provided CSV files.
-
-### query.py
-- **Description**: Contains SPARQL queries to interact with the RDF graph.
-
-### main.py
-- **Description**: FastAPI endpoint to provide an API interface for interacting with the RDF graph and executing SPARQL queries.
-
-## Usage
-
-1. **Generating RDF Graph**:
-  - Run `generate_rdf.py` to generate the RDF graph from the CSV files.
-
-2. **Executing SPARQL Queries**:
-  - Use the functions in `query.py` to execute SPARQL queries on the RDF graph.
-
-3. **API Endpoint**:
-  - Start the FastAPI server by running `main.py` to expose the API endpoints for interacting with the RDF graph and executing SPARQL queries.
-
 ## Requirements
 
 - Python 3.x
@@ -54,6 +32,28 @@ This project consists of three main components:
   ```sh
   uvicorn main:app --reload
   ```
+
+## Files
+
+### generate_rdf.py
+- **Description**: Generates the RDF graph from the provided CSV files.
+
+### query.py
+- **Description**: Contains SPARQL queries to interact with the RDF graph.
+
+### main.py
+- **Description**: FastAPI endpoint to provide an API interface for interacting with the RDF graph and executing SPARQL queries.
+
+## Usage
+
+1. **Generating RDF Graph**:
+  - Run `generate_rdf.py` to generate the RDF graph from the CSV files.
+
+2. **Executing SPARQL Queries**:
+  - Use the functions in `query.py` to execute SPARQL queries on the RDF graph.
+
+3. **API Endpoint**:
+  - Start the FastAPI server by running `main.py` to expose the API endpoints for interacting with the RDF graph and executing SPARQL queries.
 
 ## API Endpoints
 
